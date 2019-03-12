@@ -1,4 +1,5 @@
 import numpy as np
+import random
 import matplotlib.pyplot as plt
 
 '''
@@ -11,7 +12,12 @@ The 'T'ouch action will return a reward of 0 if in state 0 and and 0 if in state
 
 class Foreground:
 
-    def __init__(self, numberOfBiasBits=5, stepsBeforeSwitching=1, totalSteps=10000, alpha = 0.1):
+    def __init__(self, numberOfBiasBits=5, stepsBeforeSwitching=1, totalSteps=10000, alpha = 0.1, pctTimeInState0 = 0.33, pctTimeInState1 = 0.33):
+        if pctTimeInState1 + pctTimeInState0 > 1.0:
+            raise Exception("Error: pctTimeInState1 + pcTimeInState0 must be less than 1.0")
+
+        self.pctTimeInState0 = pctTimeInState0
+        self.pctTimeInState1 = pctTimeInState1
         self.alpha = alpha / (numberOfBiasBits + 1)
         self.numberOfBiasBits = numberOfBiasBits
         self.stepsBeforeSwitching = stepsBeforeSwitching
@@ -70,6 +76,44 @@ class Foreground:
             self.weights = self.weights + self.alpha * error * state
         #Otherwise there's nothing to learn from since action is to move
 
+
+    def testHowLongToNoError(self):
+        #Determines how long until there is virtually no error in both of the predictions
+
+    '''
+    More iid RL agent. Able to warp between states
+    '''
+    def startWithWarp(self):
+        print("Starting")
+        for step in range(self.totalSteps):
+            if step % 100:
+                print("Processing " + str(step) + " .....")
+                #get action
+                i = random.uniform(0,1)
+                if i < self.pctTimeInState0:
+                    #Go to state 0 and perform 'T'
+                    self.currentStateIndex = 0
+                    previousState = self.states[0]
+                    reward, currentState = self.takeStep('T')
+                    self.learn('T', reward, previousState, currentState)
+                elif i < self.pctTimeInState0 + self.pctTimeInState1:
+                    self.currentStateIndex = 1
+                    previousState = self.states[1]
+                    reward, currentState = self.takeStep('T')
+                    self.learn('T', reward, previousState, currentState)
+                # Update the prediction arrays
+                prediction = self.prediction(self.states[0])
+                self.state0Predictions.append(prediction)
+
+                prediction = self.prediction(self.states[1])
+                self.state1Predictions.append(prediction)
+
+        # Display the prediction array.
+        self.plotPredictions()
+
+    '''
+    Traditional RL agent. Going from state to state via actions and learning
+    '''
     def start(self):
         print("Starting ... ")
         for step in range(self.totalSteps):
@@ -100,12 +144,13 @@ class Foreground:
         titleLabel = "BIAS exoeriment"
         ax.set_title(titleLabel)
         ax.set_xlabel('Step')
-        ax.set_ylabel('Prediction')
+        ax.set_ylabel('In corner prediction')
 
-        ax.plot(self.state0Predictions)
-        ax.plot(self.state1Predictions)
+        ax.plot(self.state0Predictions, label = "Corner")
+        ax.plot(self.state1Predictions, label = "Wall")
         plt.show()
 
 
-foreground = Foreground(numberOfBiasBits = 1000)
-foreground.start()
+#foreground = Foreground(numberOfBiasBits = 100, totalSteps= 400000, pctTimeInState0 = 0.1, pctTimeInState1 = 0.01)
+#foreground.start()
+#foreground.startWithWarp()
